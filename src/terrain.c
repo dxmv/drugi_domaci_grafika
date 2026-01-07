@@ -25,9 +25,8 @@ void terrain_init(Terrain *terrain, int size) {
             
             // Get Perlin value (-1 to 1) and map to (0 to 1)
             float noise_val = perlin2d(nx, ny);
-            float height = (noise_val + 1.0f) / 2.0f;
-            
-            terrain->heightmap[row * size + col] = height;
+                
+            terrain->heightmap[row * size + col] = noise_val;
         }
     }
     

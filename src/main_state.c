@@ -24,8 +24,8 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     window_height = height;
 
     // Initialize terrain
-    terrain_init(&terrain, 10);
-    terrain_generate_vertices(&terrain, 0.2f, 0.3f);
+    terrain_init(&terrain, 100);
+    terrain_generate_vertices(&terrain, 1.0f, 15.0f);
     terrain_generate_indices(&terrain);
     
     // Initialize camera with aspect ratio

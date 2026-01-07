@@ -3,14 +3,25 @@
 
 #include <rafgl.h>
 
-
 typedef struct {
-    vec3_t position;    // Where the camera is
-    vec3_t target;      // What the camera looks at
-    vec3_t up;          // Which direction is "up"
-    mat4_t model;       // Object transformation (identity for now)
-    mat4_t view;        // Camera transformation
-    mat4_t projection;  // 3D to 2D perspective
+    vec3_t position;     // Where the camera is
+    vec3_t front;        // Direction camera is looking
+    vec3_t up;           // World up (0,1,0)
+    vec3_t right;        // Camera's right vector
+    
+    float yaw;           // Horizontal rotation (left/right)
+    float pitch;         // Vertical rotation (up/down)
+    
+    float move_speed;
+    float mouse_sensitivity;
+    
+    // For tracking mouse delta
+    float last_mouse_x;
+    float last_mouse_y;
+    int first_mouse;     // Flag for first frame
+    
+    mat4_t view;
+    mat4_t projection;
 } Camera;
 
 void camera_init(Camera *camera, float aspect_ratio);
