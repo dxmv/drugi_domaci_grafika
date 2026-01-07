@@ -4,36 +4,37 @@
 #include <vertex.h>
 #include <terrain.h>
 #include <rafgl.h>
+#include <camera.h>
 
 static int window_width, window_height;
 
-static GLuint vao;             // Vertex Array Object
-static GLuint vbo;             // Vertex Buffer Object
-static GLuint ebo;             // Element Buffer Object (for indices)
+static GLuint vao;
+static GLuint vbo;
+static GLuint ebo;
 static GLuint shader_program;
+static GLint u_MVP_location;  // Store uniform location
 
 static Terrain terrain;
+static Camera camera;
 
 void main_state_init(GLFWwindow *window, void *args, int width, int height)
 {
     window_width = width;
     window_height = height;
 
-    // Step 1: Initialize terrain with 10x10 grid
+    // Initialize terrain
     terrain_init(&terrain, 10);
-    
-    // Step 2: Generate vertices from heightmap
-    // spacing=0.2 means vertices are 0.2 units apart
-    // height_scale=0.3 means max height is 0.3 units
     terrain_generate_vertices(&terrain, 0.2f, 0.3f);
-    
-    // Step 3: Generate indices (which vertices form triangles)
     terrain_generate_indices(&terrain);
+    
+    // Initialize camera with aspect ratio
+    float aspect_ratio = (float)width / (float)height;
+    camera_init(&camera, aspect_ratio);
 
     // Create VAO, VBO, and EBO
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);  // NEW: Element Buffer Object
+    glGenBuffers(1, &ebo);
 
     glBindVertexArray(vao);
 
@@ -41,8 +42,8 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(
         GL_ARRAY_BUFFER,
-        terrain.vertex_count * sizeof(Vertex),  // Size in bytes
-        terrain.vertices,                        // Pointer to data
+        terrain.vertex_count * sizeof(Vertex),
+        terrain.vertices,
         GL_STATIC_DRAW
     );
 
@@ -50,30 +51,26 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
-        terrain.index_count * sizeof(unsigned int),  // Size in bytes
-        terrain.indices,                              // Pointer to data
+        terrain.index_count * sizeof(unsigned int),
+        terrain.indices,
         GL_STATIC_DRAW
     );
 
     // Tell OpenGL how to interpret vertex data
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(
-        0,                         // Attribute index (location in shader)
-        3,                         // Number of components (x, y, z)
-        GL_FLOAT,                  // Data type
-        GL_FALSE,                  // Normalize? No
-        sizeof(Vertex),            // Stride
-        (void*)0                   // Offset
-    );
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
 
     glBindVertexArray(0);
 
     // Load shaders
     shader_program = rafgl_program_create_from_name("terrain");
+    
+    // Get uniform location (do this ONCE after shader is loaded)
+    u_MVP_location = glGetUniformLocation(shader_program, "u_MVP");
 
     // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wireframe to see the grid
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     rafgl_log(RAFGL_INFO, "Terrain initialized: %d vertices, %d indices\n", 
               terrain.vertex_count, terrain.index_count);
@@ -85,6 +82,8 @@ void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *
     {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
+    
+    camera_update(&camera, delta_time, game_data);
 }
 
 void main_state_render(GLFWwindow *window, void *args)
@@ -94,9 +93,11 @@ void main_state_render(GLFWwindow *window, void *args)
 
     glUseProgram(shader_program);
 
+    // Calculate MVP and send to shader
+    mat4_t mvp = camera_get_mvp(&camera);
+    glUniformMatrix4fv(u_MVP_location, 1, GL_FALSE, &mvp.m[0][0]);
+
     glBindVertexArray(vao);
-    
-    // Draw using indices (glDrawElements instead of glDrawArrays)
     glDrawElements(GL_TRIANGLES, terrain.index_count, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
@@ -110,7 +111,6 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader_program);
 
-    // Free terrain memory
     free(terrain.heightmap);
     free(terrain.vertices);
     free(terrain.indices);
