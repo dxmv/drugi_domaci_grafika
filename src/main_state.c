@@ -2,75 +2,81 @@
 #include <glad/glad.h>
 #include <math.h>
 #include <vertex.h>
-
+#include <terrain.h>
 #include <rafgl.h>
-
-// ============================================================
-// PHASE 1: Drawing a single red triangle
-// ============================================================
-// 
-// Key OpenGL concepts introduced:
-//   - VAO (Vertex Array Object): Stores the configuration of vertex attributes
-//   - VBO (Vertex Buffer Object): Stores the actual vertex data on the GPU
-//   - Shader Program: Compiled GPU code (vertex + fragment shaders)
-//   - glDrawArrays: The command that actually draws
-// ============================================================
 
 static int window_width, window_height;
 
+static GLuint vao;             // Vertex Array Object
+static GLuint vbo;             // Vertex Buffer Object
+static GLuint ebo;             // Element Buffer Object (for indices)
+static GLuint shader_program;
 
-static GLuint vao;            
-static GLuint vbo;             
-static GLuint shader_program;  
-
-static Vertex triangle_vertices[3];
+static Terrain terrain;
 
 void main_state_init(GLFWwindow *window, void *args, int width, int height)
 {
     window_width = width;
     window_height = height;
 
-    triangle_vertices[0] = vertex_create(-0.5f, -0.5f, 0.0f);  // bottom-left
-    triangle_vertices[1] = vertex_create( 0.5f, -0.5f, 0.0f);  // bottom-right
-    triangle_vertices[2] = vertex_create( 0.0f,  0.5f, 0.0f);  // top
+    // Step 1: Initialize terrain with 10x10 grid
+    terrain_init(&terrain, 10);
+    
+    // Step 2: Generate vertices from heightmap
+    // spacing=0.2 means vertices are 0.2 units apart
+    // height_scale=0.3 means max height is 0.3 units
+    terrain_generate_vertices(&terrain, 0.2f, 0.3f);
+    
+    // Step 3: Generate indices (which vertices form triangles)
+    terrain_generate_indices(&terrain);
 
-
-    glGenVertexArrays(1, &vao);  
-    glGenBuffers(1, &vbo);       
+    // Create VAO, VBO, and EBO
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);  // NEW: Element Buffer Object
 
     glBindVertexArray(vao);
 
+    // Upload vertex data to VBO
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(
-        GL_ARRAY_BUFFER,                      // Target: array buffer
-        sizeof(triangle_vertices),            // Size in bytes
-        triangle_vertices,                    // Pointer to data
-        GL_STATIC_DRAW                        // Hint: data won't change often
+        GL_ARRAY_BUFFER,
+        terrain.vertex_count * sizeof(Vertex),  // Size in bytes
+        terrain.vertices,                        // Pointer to data
+        GL_STATIC_DRAW
     );
 
-    // --------------------------------------------------------
-    // STEP 3: Tell OpenGL how to interpret the vertex data
-    // --------------------------------------------------------
-    // Our Vertex struct is: { float x, y, z }
-    // That's 3 floats starting at offset 0, with stride = sizeof(Vertex)
+    // Upload index data to EBO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        terrain.index_count * sizeof(unsigned int),  // Size in bytes
+        terrain.indices,                              // Pointer to data
+        GL_STATIC_DRAW
+    );
 
-    glEnableVertexAttribArray(0);  // Enable attribute location 0 (matches layout(location=0) in shader)
+    // Tell OpenGL how to interpret vertex data
+    glEnableVertexAttribArray(0);
     glVertexAttribPointer(
         0,                         // Attribute index (location in shader)
-        3,                         // Number of components (x, y, z = 3)
+        3,                         // Number of components (x, y, z)
         GL_FLOAT,                  // Data type
         GL_FALSE,                  // Normalize? No
-        sizeof(Vertex),            // Stride (bytes between consecutive vertices)
-        (void*)0                   // Offset of first component
+        sizeof(Vertex),            // Stride
+        (void*)0                   // Offset
     );
 
     glBindVertexArray(0);
 
+    // Load shaders
     shader_program = rafgl_program_create_from_name("terrain");
 
+    // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wireframe to see the grid
 
-    rafgl_log(RAFGL_INFO, "Phase 1 initialized: Ready to draw a triangle!\n");
+    rafgl_log(RAFGL_INFO, "Terrain initialized: %d vertices, %d indices\n", 
+              terrain.vertex_count, terrain.index_count);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args)
@@ -83,16 +89,15 @@ void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *
 
 void main_state_render(GLFWwindow *window, void *args)
 {
-    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);  
+    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(shader_program);
 
-    // --------------------------------------------------------
-    // Bind VAO and draw
-    // --------------------------------------------------------
     glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 3);  // Draw 3 vertices as triangles
+    
+    // Draw using indices (glDrawElements instead of glDrawArrays)
+    glDrawElements(GL_TRIANGLES, terrain.index_count, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -102,7 +107,13 @@ void main_state_cleanup(GLFWwindow *window, void *args)
 {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader_program);
 
-    rafgl_log(RAFGL_INFO, "Phase 1 cleanup complete.\n");
+    // Free terrain memory
+    free(terrain.heightmap);
+    free(terrain.vertices);
+    free(terrain.indices);
+
+    rafgl_log(RAFGL_INFO, "Cleanup complete.\n");
 }
