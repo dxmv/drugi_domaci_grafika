@@ -84,3 +84,15 @@ float perlin2d(float x, float y) {
     // Interpolate along y
     return lerp(lerp_top, lerp_bot, v);
 }
+
+float fbm(float x, float y, int octaves) {
+    float total = 0.0f;
+    float freq = 1.0f;
+    float amp = 1.0f;
+    for(int i = 0; i < octaves; i++) {
+        total += perlin2d(x * freq, y * freq) * amp;
+        freq *= 2.0f;
+        amp *= 0.5f;
+    }
+    return total;
+}

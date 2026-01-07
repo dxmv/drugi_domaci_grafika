@@ -9,5 +9,6 @@
 
 void noise_init(void);
 float perlin2d(float x, float y);
+float fbm(float x, float y, int octaves);
 
 #endif // NOISE_H_INCLUDED

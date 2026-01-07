@@ -14,8 +14,9 @@ void terrain_init(Terrain *terrain, int size) {
     // Allocate heightmap
     terrain->heightmap = malloc(terrain->vertex_count * sizeof(float));
     
-    // Fill heightmap with Perlin noise
-    float scale = 4.0f;  // Controls "zoom" level of noise
+    // Fill heightmap with fBm (layered Perlin noise)
+    float scale = 3.0f;   // Controls "zoom" level
+    int octaves = 6;      // Number of layers (more = more detail)
     
     for (int row = 0; row < size; row++) {
         for (int col = 0; col < size; col++) {
@@ -23,9 +24,10 @@ void terrain_init(Terrain *terrain, int size) {
             float nx = (float)col / size * scale;
             float ny = (float)row / size * scale;
             
-            // Get Perlin value (-1 to 1) and map to (0 to 1)
-            float noise_val = perlin2d(nx, ny);
-                
+            // Get fBm value and normalize to (0 to 1)
+            // fBm with 6 octaves can range roughly from -1.5 to 1.5
+            float noise_val = fbm(nx, ny, octaves);
+            
             terrain->heightmap[row * size + col] = noise_val;
         }
     }
