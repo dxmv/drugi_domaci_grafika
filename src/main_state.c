@@ -5,6 +5,7 @@
 #include <terrain.h>
 #include <rafgl.h>
 #include <camera.h>
+#include <noise.h>
 
 static int window_width, window_height;
 

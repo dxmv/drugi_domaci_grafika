@@ -3,7 +3,7 @@
 
 void camera_init(Camera *camera, float aspect_ratio) {
     // Position camera above and behind the origin
-    camera->position = vec3(0.0f, 5.0f, 10.0f);
+    camera->position = vec3(0.0f, 1.0f, 1.0f);
     // Look at the center (where terrain is)
     camera->target = vec3(0.0f, 0.0f, 0.0f);
     // Y is up
