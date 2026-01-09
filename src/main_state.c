@@ -6,6 +6,7 @@
 #include <rafgl.h>
 #include <camera.h>
 #include <noise.h>
+#include <texture.h>
 
 static int window_width, window_height;
 
@@ -13,7 +14,12 @@ static GLuint vao;
 static GLuint vbo;
 static GLuint ebo;
 static GLuint shader_program;
-static GLint u_MVP_location;  // Store uniform location
+static GLint u_MVP_location;
+
+// Texture IDs
+static GLuint tex_sand, tex_grass, tex_rock, tex_snow;
+// Texture uniform locations
+static GLint tex_sand_loc, tex_grass_loc, tex_rock_loc, tex_snow_loc;
 
 static Terrain terrain;
 static Camera camera;
@@ -57,9 +63,12 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
         GL_STATIC_DRAW
     );
 
-    // Tell OpenGL how to interpret vertex data
+    // koordinate
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    // teksure
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
 
     glBindVertexArray(0);
 
@@ -69,9 +78,21 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     // Get uniform location (do this ONCE after shader is loaded)
     u_MVP_location = glGetUniformLocation(shader_program, "u_MVP");
 
+    // Load textures
+    tex_sand  = texture_load("res/textures/sand.png");
+    tex_grass = texture_load("res/textures/grass.png");
+    tex_rock  = texture_load("res/textures/rock.png");
+    tex_snow  = texture_load("res/textures/snow.png");
+    
+    // Get texture sampler uniform locations
+    tex_sand_loc  = glGetUniformLocation(shader_program, "u_tex_sand");
+    tex_grass_loc = glGetUniformLocation(shader_program, "u_tex_grass");
+    tex_rock_loc  = glGetUniformLocation(shader_program, "u_tex_rock");
+    tex_snow_loc  = glGetUniformLocation(shader_program, "u_tex_snow");
+
     // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     rafgl_log(RAFGL_INFO, "Terrain initialized: %d vertices, %d indices\n", 
               terrain.vertex_count, terrain.index_count);
@@ -94,6 +115,23 @@ void main_state_render(GLFWwindow *window, void *args)
 
     glUseProgram(shader_program);
 
+    // Bind textures to texture units
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex_sand);
+    glUniform1i(tex_sand_loc, 0);
+    
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tex_grass);
+    glUniform1i(tex_grass_loc, 1);
+    
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, tex_rock);
+    glUniform1i(tex_rock_loc, 2);
+    
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, tex_snow);
+    glUniform1i(tex_snow_loc, 3);
+
     // Calculate MVP and send to shader
     mat4_t mvp = camera_get_mvp(&camera);
     glUniformMatrix4fv(u_MVP_location, 1, GL_FALSE, &mvp.m[0][0]);
@@ -111,6 +149,12 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader_program);
+    
+    // Delete textures
+    glDeleteTextures(1, &tex_sand);
+    glDeleteTextures(1, &tex_grass);
+    glDeleteTextures(1, &tex_rock);
+    glDeleteTextures(1, &tex_snow);
 
     free(terrain.heightmap);
     free(terrain.vertices);

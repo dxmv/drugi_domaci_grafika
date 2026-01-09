@@ -53,8 +53,10 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
             float x = col * spacing - offset;
             float y = terrain->heightmap[index] * height_scale;
             float z = row * spacing - offset;
+            float u = (float)col / size;
+            float v = (float)row / size;
             
-            terrain->vertices[index] = vertex_create(x, y, z);
+            terrain->vertices[index] = vertex_create(x, y, z, u, v);
         }
     }
     
