@@ -10,10 +10,13 @@ typedef struct {
     unsigned int *indices; // (size-1)*(size-1)*6 indices (triangles)
     int vertex_count;      // size * size
     int index_count;       // (size-1) * (size-1) * 6
+    float spacing;         // store spacing for normal calculation
+    float height_scale;    // store height_scale for normal calculation
 } Terrain;
 
 void terrain_init(Terrain *terrain, int size);
 void terrain_generate_vertices(Terrain *terrain, float spacing, float height_scale);
+void terrain_calculate_normals(Terrain *terrain);
 void terrain_generate_indices(Terrain *terrain);
 
 #endif // TERRAIN_H_INCLUDED

@@ -4,16 +4,23 @@ out vec4 frag_color;
 
 in vec2 v_texcoord;
 in float v_height;
+in vec3 v_normal;
 
+// Texture samplers
 uniform sampler2D u_tex_sand;
 uniform sampler2D u_tex_grass;
 uniform sampler2D u_tex_rock;
 uniform sampler2D u_tex_snow;
 
+// Lighting uniforms
+uniform vec3 u_light_dir;      // Direction TO the light (normalized)
+uniform vec3 u_light_color;    // Color/intensity of directional light
+uniform vec3 u_ambient_color;  // Ambient light color
+
 void main()
 {
-    // Sample all textures
-    vec4 sand  = texture(u_tex_sand,  v_texcoord * 10.0);  // tile 10x
+    // Sample all textures (tiled 10x)
+    vec4 sand  = texture(u_tex_sand,  v_texcoord * 10.0);
     vec4 grass = texture(u_tex_grass, v_texcoord * 10.0);
     vec4 rock  = texture(u_tex_rock,  v_texcoord * 10.0);
     vec4 snow  = texture(u_tex_snow,  v_texcoord * 10.0);
@@ -28,5 +35,19 @@ void main()
     float snow_weight  = smoothstep(0.8, 0.9, h);
     
     // Blend textures by height
-    frag_color = sand * sand_weight + grass * grass_weight + rock * rock_weight + snow * snow_weight;
+    vec4 terrain_color = sand * sand_weight + grass * grass_weight + rock * rock_weight + snow * snow_weight;
+    
+    // --- Lighting calculation ---
+    
+    // Normalize the interpolated normal
+    vec3 N = normalize(v_normal);
+    
+    // Diffuse lighting: how much the surface faces the light
+    float diffuse = max(dot(N, u_light_dir), 0.0);
+    
+    // Combine ambient and diffuse lighting
+    vec3 lighting = u_ambient_color + diffuse * u_light_color;
+    
+    // Apply lighting to terrain color
+    frag_color = vec4(terrain_color.rgb * lighting, 1.0);
 }

@@ -20,6 +20,8 @@ static GLint u_MVP_location;
 static GLuint tex_sand, tex_grass, tex_rock, tex_snow;
 // Texture uniform locations
 static GLint tex_sand_loc, tex_grass_loc, tex_rock_loc, tex_snow_loc;
+// Lighting uniform locations
+static GLint u_light_dir_loc, u_light_color_loc, u_ambient_color_loc;
 
 static Terrain terrain;
 static Camera camera;
@@ -32,6 +34,7 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     // Initialize terrain
     terrain_init(&terrain, 100);
     terrain_generate_vertices(&terrain, 1.0f, 15.0f);
+    terrain_calculate_normals(&terrain);
     terrain_generate_indices(&terrain);
     
     // Initialize camera with aspect ratio
@@ -69,6 +72,8 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     // teksure
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(5 * sizeof(float)));
 
     glBindVertexArray(0);
 
@@ -89,6 +94,11 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     tex_grass_loc = glGetUniformLocation(shader_program, "u_tex_grass");
     tex_rock_loc  = glGetUniformLocation(shader_program, "u_tex_rock");
     tex_snow_loc  = glGetUniformLocation(shader_program, "u_tex_snow");
+    
+    // Get lighting uniform locations
+    u_light_dir_loc     = glGetUniformLocation(shader_program, "u_light_dir");
+    u_light_color_loc   = glGetUniformLocation(shader_program, "u_light_color");
+    u_ambient_color_loc = glGetUniformLocation(shader_program, "u_ambient_color");
 
     // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
@@ -131,6 +141,16 @@ void main_state_render(GLFWwindow *window, void *args)
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, tex_snow);
     glUniform1i(tex_snow_loc, 3);
+    
+    // Set lighting uniforms
+    // Light direction (normalized vector pointing TO the light source)
+    float lx = 0.5f, ly = 1.0f, lz = 0.3f;
+    float len = sqrtf(lx*lx + ly*ly + lz*lz);
+    glUniform3f(u_light_dir_loc, lx/len, ly/len, lz/len);
+    // Warm sunlight color
+    glUniform3f(u_light_color_loc, 1.0f, 0.95f, 0.8f);
+    // Ambient color (slight blue tint for sky reflection)
+    glUniform3f(u_ambient_color_loc, 0.15f, 0.15f, 0.2f);
 
     // Calculate MVP and send to shader
     mat4_t mvp = camera_get_mvp(&camera);
