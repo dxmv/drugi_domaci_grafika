@@ -16,6 +16,13 @@ static GLuint ebo;
 static GLuint shader_program;
 static GLint u_MVP_location;
 
+static GLuint skybox_vao;
+static GLuint skybox_vbo;
+static GLuint skybox_program;
+static GLuint skybox_texture;
+static GLint skybox_view_loc;
+static GLint skybox_proj_loc;
+
 // Texture IDs
 static GLuint tex_sand, tex_grass, tex_rock, tex_snow;
 // Texture uniform locations
@@ -25,6 +32,59 @@ static GLint u_light_dir_loc, u_light_color_loc, u_ambient_color_loc;
 
 static Terrain terrain;
 static Camera camera;
+
+static const float skybox_vertices[] = {
+    -1.0f,  1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+    -1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f
+};
+
+static mat4_t skybox_view_without_translation(mat4_t view)
+{
+    view.m30 = 0.0f;
+    view.m31 = 0.0f;
+    view.m32 = 0.0f;
+    view.m33 = 1.0f;
+    return view;
+}
 
 void main_state_init(GLFWwindow *window, void *args, int width, int height)
 {
@@ -100,11 +160,45 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     u_light_color_loc   = glGetUniformLocation(shader_program, "u_light_color");
     u_ambient_color_loc = glGetUniformLocation(shader_program, "u_ambient_color");
 
+    // Skybox GPU resources
+    glGenVertexArrays(1, &skybox_vao);
+    glGenBuffers(1, &skybox_vbo);
+    glBindVertexArray(skybox_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, skybox_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skybox_vertices), skybox_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindVertexArray(0);
+
+    skybox_program = rafgl_program_create_from_name("skybox");
+    skybox_view_loc = glGetUniformLocation(skybox_program, "u_view");
+    skybox_proj_loc = glGetUniformLocation(skybox_program, "u_projection");
+
+    glUseProgram(skybox_program);
+    GLint skybox_sampler_loc = glGetUniformLocation(skybox_program, "u_skybox");
+    glUniform1i(skybox_sampler_loc, 0);
+    glUseProgram(0);
+
+    const char *skybox_faces[6] = {
+        "res/textures/skybox/right.tga",
+        "res/textures/skybox/left.tga",
+        "res/textures/skybox/top.tga",
+        "res/textures/skybox/bottom.tga",
+        "res/textures/skybox/front.tga",
+        "res/textures/skybox/back.tga"
+    };
+
+    skybox_texture = texture_load_cubemap(skybox_faces, 6);
+    if(!skybox_texture)
+    {
+        printf("Skybox cubemap failed to load. Check texture paths.\n");
+    }
+
     // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    rafgl_log(RAFGL_INFO, "Terrain initialized: %d vertices, %d indices\n", 
+    printf("Terrain initialized: %d vertices, %d indices\n", 
               terrain.vertex_count, terrain.index_count);
 }
 
@@ -122,6 +216,25 @@ void main_state_render(GLFWwindow *window, void *args)
 {
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Draw skybox first so depth buffer contains farthest values
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+    glUseProgram(skybox_program);
+
+    mat4_t skybox_view = skybox_view_without_translation(camera.view);
+    glUniformMatrix4fv(skybox_view_loc, 1, GL_FALSE, &skybox_view.m[0][0]);
+    glUniformMatrix4fv(skybox_proj_loc, 1, GL_FALSE, &camera.projection.m[0][0]);
+
+    glBindVertexArray(skybox_vao);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skybox_texture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+
+    glUseProgram(0);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
 
     glUseProgram(shader_program);
 
@@ -169,6 +282,11 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteBuffers(1, &vbo);
     glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader_program);
+
+    glDeleteVertexArrays(1, &skybox_vao);
+    glDeleteBuffers(1, &skybox_vbo);
+    glDeleteProgram(skybox_program);
+    glDeleteTextures(1, &skybox_texture);
     
     // Delete textures
     glDeleteTextures(1, &tex_sand);
@@ -180,5 +298,5 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     free(terrain.vertices);
     free(terrain.indices);
 
-    rafgl_log(RAFGL_INFO, "Cleanup complete.\n");
+    printf("Cleanup complete.\n");
 }
