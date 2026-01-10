@@ -27,5 +27,6 @@ typedef struct {
 void camera_init(Camera *camera, float aspect_ratio);
 void camera_update(Camera *camera, float delta_time, rafgl_game_data_t *game_data);
 mat4_t camera_get_mvp(Camera *camera);
+vec3_t camera_get_position(const Camera *camera);
 
 #endif // CAMERA_H_INCLUDED

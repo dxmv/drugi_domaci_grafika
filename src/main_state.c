@@ -12,7 +12,6 @@ static int window_width, window_height;
 
 static GLuint vao;
 static GLuint vbo;
-static GLuint ebo;
 static GLuint shader_program;
 static GLint u_MVP_location;
 
@@ -92,19 +91,17 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     window_height = height;
 
     // Initialize terrain
-    terrain_init(&terrain, 100);
+    terrain_init(&terrain, PATCH_SIZE * 3 + 1);
     terrain_generate_vertices(&terrain, 1.0f, 15.0f);
     terrain_calculate_normals(&terrain);
-    terrain_generate_indices(&terrain);
     
     // Initialize camera with aspect ratio
     float aspect_ratio = (float)width / (float)height;
     camera_init(&camera, aspect_ratio);
 
-    // Create VAO, VBO, and EBO
+    // Create VAO and VBO (indices handled per patch/LOD)
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
 
     glBindVertexArray(vao);
 
@@ -117,15 +114,6 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
         GL_STATIC_DRAW
     );
 
-    // Upload index data to EBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        terrain.index_count * sizeof(unsigned int),
-        terrain.indices,
-        GL_STATIC_DRAW
-    );
-
     // koordinate
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
@@ -134,6 +122,30 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(2);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(5 * sizeof(float)));
+
+    // Build patch index buffers for every LOD level
+    for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
+        TerrainPatch *patch = &terrain.patches[patch_idx];
+        glGenBuffers(LOD_COUNT, patch->ebo);
+
+        for (int lod = 0; lod < LOD_COUNT; ++lod) {
+            int index_count = 0;
+            unsigned int *indices = terrain_build_patch_indices(&terrain, patch, g_lod_steps[lod], &index_count);
+            if (!indices || index_count == 0) {
+                continue;
+            }
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patch->ebo[lod]);
+            glBufferData(
+                GL_ELEMENT_ARRAY_BUFFER,
+                (GLsizeiptr)(index_count * sizeof(unsigned int)),
+                indices,
+                GL_STATIC_DRAW
+            );
+            patch->index_counts[lod] = index_count;
+            free(indices);
+        }
+    }
 
     glBindVertexArray(0);
 
@@ -198,8 +210,8 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     glEnable(GL_DEPTH_TEST);
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    printf("Terrain initialized: %d vertices, %d indices\n", 
-              terrain.vertex_count, terrain.index_count);
+    printf("Terrain initialized: %d vertices, %d patches\n", 
+              terrain.vertex_count, terrain.patch_count);
 }
 
 void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *game_data, void *args)
@@ -269,8 +281,36 @@ void main_state_render(GLFWwindow *window, void *args)
     mat4_t mvp = camera_get_mvp(&camera);
     glUniformMatrix4fv(u_MVP_location, 1, GL_FALSE, &mvp.m[0][0]);
 
+    vec3_t cam_pos = camera_get_position(&camera);
+    float offset = (terrain.size - 1) * terrain.spacing / 2.0f;
+
+
     glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, terrain.index_count, GL_UNSIGNED_INT, 0);
+    for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
+        TerrainPatch *patch = &terrain.patches[patch_idx];
+        float center_x = (patch->origin.x + PATCH_SIZE * 0.5f) * terrain.spacing - offset;
+        float center_z = (patch->origin.y + PATCH_SIZE * 0.5f) * terrain.spacing - offset;
+        float dx = cam_pos.x - center_x;
+        float dz = cam_pos.z - center_z;
+        float distance = sqrtf(dx * dx + dz * dz);
+
+        int lod = 0;
+        if (distance > 120.0f) {
+            lod = 2;
+        } else if (distance > 60.0f) {
+            lod = 1;
+        }
+        if (lod >= patch->lod_levels) {
+            lod = patch->lod_levels - 1;
+        }
+
+        if (patch->index_counts[lod] <= 0) {
+            continue;
+        }
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, patch->ebo[lod]);
+        glDrawElements(GL_TRIANGLES, patch->index_counts[lod], GL_UNSIGNED_INT, 0);
+    }
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -280,7 +320,6 @@ void main_state_cleanup(GLFWwindow *window, void *args)
 {
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
     glDeleteProgram(shader_program);
 
     glDeleteVertexArrays(1, &skybox_vao);
@@ -294,9 +333,14 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteTextures(1, &tex_rock);
     glDeleteTextures(1, &tex_snow);
 
+    for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
+        TerrainPatch *patch = &terrain.patches[patch_idx];
+        glDeleteBuffers(LOD_COUNT, patch->ebo);
+    }
+
     free(terrain.heightmap);
     free(terrain.vertices);
-    free(terrain.indices);
+    free(terrain.patches);
 
     printf("Cleanup complete.\n");
 }

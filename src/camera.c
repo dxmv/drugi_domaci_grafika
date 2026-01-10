@@ -115,3 +115,8 @@ mat4_t camera_get_mvp(Camera *camera) {
     // MVP = Projection * View (no model transform needed)
     return m4_mul(camera->projection, camera->view);
 }
+
+vec3_t camera_get_position(const Camera *camera)
+{
+    return camera->position;
+}
