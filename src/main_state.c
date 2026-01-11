@@ -225,7 +225,7 @@ void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *
     {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
-    if (game_data->keys_down[RAFGL_KEY_T])
+    if (game_data->keys_pressed[RAFGL_KEY_T])
     {
         test_mode = !test_mode;
     }
@@ -237,6 +237,16 @@ void main_state_render(GLFWwindow *window, void *args)
 {
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // keep skybox solid regardless of test mode
+    if (test_mode)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    else
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 
     // prvo crtamo skybox
     glDepthFunc(GL_LEQUAL);
@@ -258,6 +268,15 @@ void main_state_render(GLFWwindow *window, void *args)
     glDepthFunc(GL_LESS);
 
     glUseProgram(shader_program);
+
+    if (test_mode)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    else
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 
     // dodela tekstura
     glActiveTexture(GL_TEXTURE0);
@@ -322,14 +341,6 @@ void main_state_render(GLFWwindow *window, void *args)
     glUseProgram(0);
 
     tree_system_render(&tree_system, mvp, light_dir, light_color, ambient_color);
-    if (test_mode)
-    {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    }
-    else
-    {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
 }
 
 void main_state_cleanup(GLFWwindow *window, void *args)
