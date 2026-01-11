@@ -91,8 +91,8 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     window_height = height;
 
     // Initialize terrain
-    terrain_init(&terrain, PATCH_SIZE * 3 + 1);
-    terrain_generate_vertices(&terrain, 1.0f, 15.0f);
+    terrain_init(&terrain, PATCH_SIZE * 10 + 1);
+    terrain_generate_vertices(&terrain, 1.0f, 30.0f);
     terrain_calculate_normals(&terrain);
     
     // Initialize camera with aspect ratio
@@ -192,12 +192,12 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     glUseProgram(0);
 
     const char *skybox_faces[6] = {
-        "res/textures/skybox/right.tga",
-        "res/textures/skybox/left.tga",
-        "res/textures/skybox/top.tga",
-        "res/textures/skybox/bottom.tga",
-        "res/textures/skybox/front.tga",
-        "res/textures/skybox/back.tga"
+        "res/textures/skybox/right.png",
+        "res/textures/skybox/left.png",
+        "res/textures/skybox/top.png",
+        "res/textures/skybox/bottom.png",
+        "res/textures/skybox/front.png",
+        "res/textures/skybox/back.png"
     };
 
     skybox_texture = texture_load_cubemap(skybox_faces, 6);
@@ -206,7 +206,6 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
         printf("Skybox cubemap failed to load. Check texture paths.\n");
     }
 
-    // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
 
     printf("Terrain initialized: %d vertices, %d patches\n", 
