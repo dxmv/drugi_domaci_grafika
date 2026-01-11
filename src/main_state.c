@@ -7,6 +7,7 @@
 #include <camera.h>
 #include <noise.h>
 #include <texture.h>
+#include <tree.h>
 
 static int window_width, window_height;
 
@@ -32,38 +33,7 @@ static GLint u_light_dir_loc, u_light_color_loc, u_ambient_color_loc;
 static Terrain terrain;
 static Camera camera;
 
-static rafgl_meshPUN_t tree_mesh;
-static GLuint tree_program;
-static GLint tree_u_mvp_loc;
-static GLint tree_u_model_loc;
-static GLint tree_u_normal_loc;
-static GLint tree_u_light_dir_loc;
-static GLint tree_u_light_color_loc;
-static GLint tree_u_ambient_color_loc;
-static GLint tree_u_trunk_color_loc;
-static GLint tree_u_leaf_color_loc;
-static GLint tree_u_leaf_start_loc;
-static GLint tree_u_leaf_transition_loc;
-
-static mat4_t tree_model_matrix;
-static float tree_normal_matrix[9];
-static float tree_leaf_start_height;
-static float tree_leaf_transition_height;
-static float tree_scale = 2.2f;
-
-static void tree_update_normal_matrix(void)
-{
-    mat4_t normal = m4_transpose(m4_invert_affine(tree_model_matrix));
-    tree_normal_matrix[0] = normal.m00;
-    tree_normal_matrix[1] = normal.m10;
-    tree_normal_matrix[2] = normal.m20;
-    tree_normal_matrix[3] = normal.m01;
-    tree_normal_matrix[4] = normal.m11;
-    tree_normal_matrix[5] = normal.m21;
-    tree_normal_matrix[6] = normal.m02;
-    tree_normal_matrix[7] = normal.m12;
-    tree_normal_matrix[8] = normal.m22;
-}
+static TreeSystem tree_system;
 
 static const float skybox_vertices[] = {
     -1.0f,  1.0f, -1.0f,
@@ -241,43 +211,7 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
 
     glEnable(GL_DEPTH_TEST);
 
-    rafgl_meshPUN_init(&tree_mesh);
-    vec3_t tree_offset = vec3(0.0f, 1.9f, 0.0f);
-    rafgl_meshPUN_load_from_OBJ_offset(&tree_mesh, "res/models/tree.obj", tree_offset);
-
-    tree_program = rafgl_program_create_from_name("tree");
-    tree_u_mvp_loc = glGetUniformLocation(tree_program, "u_MVP");
-    tree_u_model_loc = glGetUniformLocation(tree_program, "u_model");
-    tree_u_normal_loc = glGetUniformLocation(tree_program, "u_normal_matrix");
-    tree_u_light_dir_loc = glGetUniformLocation(tree_program, "u_light_dir");
-    tree_u_light_color_loc = glGetUniformLocation(tree_program, "u_light_color");
-    tree_u_ambient_color_loc = glGetUniformLocation(tree_program, "u_ambient_color");
-    tree_u_trunk_color_loc = glGetUniformLocation(tree_program, "u_trunk_color");
-    tree_u_leaf_color_loc = glGetUniformLocation(tree_program, "u_leaf_color");
-    tree_u_leaf_start_loc = glGetUniformLocation(tree_program, "u_leaf_start_height");
-    tree_u_leaf_transition_loc = glGetUniformLocation(tree_program, "u_leaf_transition_height");
-
-    int tree_row = terrain.size / 2 + 6;
-    if(tree_row >= terrain.size)
-    {
-        tree_row = terrain.size - 1;
-    }
-    int tree_col = terrain.size / 2 - 6;
-    if(tree_col < 0)
-    {
-        tree_col = 0;
-    }
-    int tree_vertex_index = tree_row * terrain.size + tree_col;
-    Vertex anchor_vertex = terrain.vertices[tree_vertex_index];
-    vec3_t tree_position = vec3(anchor_vertex.x, anchor_vertex.y, anchor_vertex.z);
-
-    mat4_t translate = m4_translation(tree_position);
-    mat4_t scale = m4_scaling(vec3(tree_scale, tree_scale, tree_scale));
-    tree_model_matrix = m4_mul(translate, scale);
-    tree_update_normal_matrix();
-
-    tree_leaf_start_height = tree_position.y + 1.6f * tree_scale;
-    tree_leaf_transition_height = 0.9f * tree_scale;
+    tree_system_init(&tree_system, &terrain);
 
     printf("Terrain initialized: %d vertices, %d patches\n", 
               terrain.vertex_count, terrain.patch_count);
@@ -382,24 +316,7 @@ void main_state_render(GLFWwindow *window, void *args)
     glBindVertexArray(0);
     glUseProgram(0);
 
-    glUseProgram(tree_program);
-
-    mat4_t tree_mvp = m4_mul(mvp, tree_model_matrix);
-    glUniformMatrix4fv(tree_u_mvp_loc, 1, GL_FALSE, &tree_mvp.m[0][0]);
-    glUniformMatrix4fv(tree_u_model_loc, 1, GL_FALSE, &tree_model_matrix.m[0][0]);
-    glUniformMatrix3fv(tree_u_normal_loc, 1, GL_FALSE, tree_normal_matrix);
-    glUniform3f(tree_u_light_dir_loc, light_dir.x, light_dir.y, light_dir.z);
-    glUniform3f(tree_u_light_color_loc, light_color.x, light_color.y, light_color.z);
-    glUniform3f(tree_u_ambient_color_loc, ambient_color.x, ambient_color.y, ambient_color.z);
-    glUniform3f(tree_u_trunk_color_loc, 0.10f, 0.35f, 0.18f);
-    glUniform3f(tree_u_leaf_color_loc, 0.20f, 0.55f, 0.18f);
-    glUniform1f(tree_u_leaf_start_loc, tree_leaf_start_height);
-    glUniform1f(tree_u_leaf_transition_loc, tree_leaf_transition_height);
-
-    glBindVertexArray(tree_mesh.vao_id);
-    glDrawArrays(GL_TRIANGLES, 0, tree_mesh.vertex_count);
-    glBindVertexArray(0);
-    glUseProgram(0);
+    tree_system_render(&tree_system, mvp, light_dir, light_color, ambient_color);
 }
 
 void main_state_cleanup(GLFWwindow *window, void *args)
@@ -419,14 +336,7 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteTextures(1, &tex_rock);
     glDeleteTextures(1, &tex_snow);
 
-    if(tree_mesh.vao_id)
-    {
-        glDeleteVertexArrays(1, &tree_mesh.vao_id);
-    }
-    if(tree_program)
-    {
-        glDeleteProgram(tree_program);
-    }
+    tree_system_cleanup(&tree_system);
 
     for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
         TerrainPatch *patch = &terrain.patches[patch_idx];
