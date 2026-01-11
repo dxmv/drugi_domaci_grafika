@@ -79,6 +79,8 @@ static const float skybox_vertices[] = {
      1.0f, -1.0f,  1.0f
 };
 
+int test_mode = 0;
+
 static mat4_t skybox_view_without_translation(mat4_t view)
 {
     view.m30 = 0.0f;
@@ -223,6 +225,10 @@ void main_state_update(GLFWwindow *window, float delta_time, rafgl_game_data_t *
     {
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
+    if (game_data->keys_down[RAFGL_KEY_T])
+    {
+        test_mode = !test_mode;
+    }
     
     camera_update(&camera, delta_time, game_data);
 }
@@ -285,7 +291,6 @@ void main_state_render(GLFWwindow *window, void *args)
     vec3_t cam_pos = camera_get_position(&camera);
     float offset = (terrain.size - 1) * terrain.spacing / 2.0f;
 
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glBindVertexArray(vao);
     for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
         TerrainPatch *patch = &terrain.patches[patch_idx];
@@ -317,6 +322,14 @@ void main_state_render(GLFWwindow *window, void *args)
     glUseProgram(0);
 
     tree_system_render(&tree_system, mvp, light_dir, light_color, ambient_color);
+    if (test_mode)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    else
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 }
 
 void main_state_cleanup(GLFWwindow *window, void *args)

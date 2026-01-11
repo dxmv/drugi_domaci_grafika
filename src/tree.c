@@ -37,6 +37,58 @@ static float random_range(float min_value, float max_value)
     return min_value + random_unit() * (max_value - min_value);
 }
 
+static float clampf(float value, float min_value, float max_value)
+{
+    if(value < min_value)
+    {
+        return min_value;
+    }
+    if(value > max_value)
+    {
+        return max_value;
+    }
+    return value;
+}
+
+static float calculate_vertex_slope(const Vertex *vertex)
+{
+    vec3_t normal = vec3(vertex->nx, vertex->ny, vertex->nz);
+    float length = v3_length(normal);
+    if(length > 0.0f)
+    {
+        normal = v3_norm(normal);
+    }
+    else
+    {
+        normal = RAFGL_VEC3_Y;
+    }
+
+    float dot_up = fabsf(v3_dot(normal, RAFGL_VEC3_Y));
+    dot_up = clampf(dot_up, 0.0f, 1.0f);
+    return 1.0f - dot_up;
+}
+
+static int is_grass_candidate(const Vertex *vertex, const Terrain *terrain)
+{
+    const float height_scale = terrain->height_scale;
+    if(height_scale <= 0.0f)
+    {
+        return 0;
+    }
+
+    float normalized_height = (vertex->y + height_scale) / (2.0f * height_scale);
+    const float grass_min = 0.2f;
+    const float grass_max = 0.65f;
+    if(normalized_height < grass_min || normalized_height > grass_max)
+    {
+        return 0;
+    }
+
+    const float max_slope = 0.35f;
+    float slope = calculate_vertex_slope(vertex);
+    return slope <= max_slope;
+}
+
 static void seed_random_generator(void)
 {
     static int seeded = 0;
@@ -86,35 +138,69 @@ void tree_system_init(TreeSystem *system, const Terrain *terrain)
         system->instance_count = max_tree_instances;
     }
 
-    system->instances = calloc(system->instance_count, sizeof(TreeInstance));
-    if(!system->instances)
+    int *candidate_indices = malloc(vertex_grid * sizeof(int));
+    if(!candidate_indices)
     {
-        fprintf(stderr, "Tree system: failed to allocate instance buffer\n");
+        fprintf(stderr, "Tree system: failed to allocate candidate buffer\n");
         system->instance_count = 0;
         return;
     }
 
-    int max_index = terrain->size - 1;
+    int candidate_count = 0;
+    for(int row = 0; row < terrain->size; ++row)
+    {
+        for(int col = 0; col < terrain->size; ++col)
+        {
+            int vertex_index = row * terrain->size + col;
+            Vertex *vertex = &terrain->vertices[vertex_index];
+            if(is_grass_candidate(vertex, terrain))
+            {
+                candidate_indices[candidate_count++] = vertex_index;
+            }
+        }
+    }
+
+    if(candidate_count == 0)
+    {
+        fprintf(stderr, "Tree system: no valid grass locations found\n");
+        free(candidate_indices);
+        system->instance_count = 0;
+        return;
+    }
+
+    if(system->instance_count > candidate_count)
+    {
+        system->instance_count = candidate_count;
+    }
+
+    for(int i = candidate_count - 1; i > 0; --i)
+    {
+        int j = rand() % (i + 1);
+        int tmp = candidate_indices[i];
+        candidate_indices[i] = candidate_indices[j];
+        candidate_indices[j] = tmp;
+    }
+
+    system->instances = calloc(system->instance_count, sizeof(TreeInstance));
+    if(!system->instances)
+    {
+        fprintf(stderr, "Tree system: failed to allocate instance buffer\n");
+        free(candidate_indices);
+        system->instance_count = 0;
+        return;
+    }
+
     for(int i = 0; i < system->instance_count; ++i)
     {
-        int row = rand() % terrain->size;
-        int col = rand() % terrain->size;
-        if(row > max_index)
-        {
-            row = max_index;
-        }
-        if(col > max_index)
-        {
-            col = max_index;
-        }
-
-        int vertex_index = row * terrain->size + col;
+        int vertex_index = candidate_indices[i];
         Vertex anchor = terrain->vertices[vertex_index];
         vec3_t tree_pos = vec3(anchor.x, anchor.y, anchor.z);
         float scale = random_range(1.4f, 2.6f);
         float rotation_rad = random_range(0.0f, 2.0f * M_PIf);
         tree_instance_build(&system->instances[i], tree_pos, scale, rotation_rad);
     }
+
+    free(candidate_indices);
 
     printf("Tree system initialized with %d trees\n", system->instance_count);
 }
