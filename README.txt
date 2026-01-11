@@ -1,4 +1,12 @@
-Za studente koji koriste linux/macOS
-	Da bi ste kompajlirali i pokrenuli projekat, prvo instalirajte
-	glfw bibljiteku (ili sudo apt-get install glfw ili brew install glfw)
-	zatim se konzolom navedete do ovog direktorijuma i kucate komandu "make"
+- [x] texture.c
+- [x] vertex.c
+- [x] terrain.c
+- [x] noise.c
+- [x] camera.c
+- [x] main_state.c
+
+- More Advanced Texture Blending
+- Simple Water Plane
+- Day/Night Cycle
+- Frustum Culling
+- Interactive Terrain Deformation?

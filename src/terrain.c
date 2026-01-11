@@ -39,7 +39,7 @@ void terrain_init(Terrain *terrain, int size) {
     
     // Fill heightmap with fBm (layered Perlin noise)
     float scale = 3.0f;   // Controls "zoom" level
-    int octaves = 6;      // Number of layers (more = more detail)
+    int octaves = 10;      // Number of layers (more = more detail)
     
     for (int row = 0; row < size; row++) {
         for (int col = 0; col < size; col++) {

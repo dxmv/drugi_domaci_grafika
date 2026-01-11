@@ -17,22 +17,20 @@ GLuint texture_load(const char *filepath) {
     glGenTextures(1, &tex_id);
     glBindTexture(GL_TEXTURE_2D, tex_id);
     
-    // Wrap parameters (tiling)
+    // wrap
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     
-    // Filter parameters
+    // filteri
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    // Determine format based on channels
+    
     GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
     
-    // Upload to GPU
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     
-    // Free CPU-side data
     stbi_image_free(data);
     
     printf("Loaded texture: %s (%dx%d, %d channels)\n", filepath, width, height, channels);
@@ -51,7 +49,6 @@ GLuint texture_load_cubemap(const char **faces, int count)
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_CUBE_MAP, texture_id);
 
-    stbi_set_flip_vertically_on_load(0);
 
     for(int i = 0; i < count; ++i)
     {
@@ -69,6 +66,7 @@ GLuint texture_load_cubemap(const char **faces, int count)
         stbi_image_free(data);
     }
 
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

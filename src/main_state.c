@@ -167,12 +167,12 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
     tex_rock_loc  = glGetUniformLocation(shader_program, "u_tex_rock");
     tex_snow_loc  = glGetUniformLocation(shader_program, "u_tex_snow");
     
-    // Get lighting uniform locations
+    // light
     u_light_dir_loc     = glGetUniformLocation(shader_program, "u_light_dir");
     u_light_color_loc   = glGetUniformLocation(shader_program, "u_light_color");
     u_ambient_color_loc = glGetUniformLocation(shader_program, "u_ambient_color");
 
-    // Skybox GPU resources
+    // skybox
     glGenVertexArrays(1, &skybox_vao);
     glGenBuffers(1, &skybox_vbo);
     glBindVertexArray(skybox_vao);
@@ -208,7 +208,6 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
 
     // Enable depth testing and wireframe mode
     glEnable(GL_DEPTH_TEST);
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     printf("Terrain initialized: %d vertices, %d patches\n", 
               terrain.vertex_count, terrain.patch_count);
@@ -229,7 +228,7 @@ void main_state_render(GLFWwindow *window, void *args)
     glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Draw skybox first so depth buffer contains farthest values
+    // prvo crtamo skybox
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
     glUseProgram(skybox_program);
@@ -250,7 +249,7 @@ void main_state_render(GLFWwindow *window, void *args)
 
     glUseProgram(shader_program);
 
-    // Bind textures to texture units
+    // dodela tekstura
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex_sand);
     glUniform1i(tex_sand_loc, 0);
@@ -267,14 +266,11 @@ void main_state_render(GLFWwindow *window, void *args)
     glBindTexture(GL_TEXTURE_2D, tex_snow);
     glUniform1i(tex_snow_loc, 3);
     
-    // Set lighting uniforms
-    // Light direction (normalized vector pointing TO the light source)
-    float lx = 0.5f, ly = 1.0f, lz = 0.3f;
+    
+    float lx = 0.5f, ly = 1.0f, lz = 0.3f; // dirkecije svetlosti
     float len = sqrtf(lx*lx + ly*ly + lz*lz);
     glUniform3f(u_light_dir_loc, lx/len, ly/len, lz/len);
-    // Warm sunlight color
     glUniform3f(u_light_color_loc, 1.0f, 0.95f, 0.8f);
-    // Ambient color (slight blue tint for sky reflection)
     glUniform3f(u_ambient_color_loc, 0.15f, 0.15f, 0.2f);
 
     // Calculate MVP and send to shader
@@ -284,7 +280,7 @@ void main_state_render(GLFWwindow *window, void *args)
     vec3_t cam_pos = camera_get_position(&camera);
     float offset = (terrain.size - 1) * terrain.spacing / 2.0f;
 
-
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glBindVertexArray(vao);
     for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
         TerrainPatch *patch = &terrain.patches[patch_idx];

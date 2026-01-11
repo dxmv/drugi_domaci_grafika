@@ -3,8 +3,8 @@
 
 typedef struct {
     float x, y, z;
-    float u, v;  // texture coordinates
-    float nx, ny, nz;  // normal coordinates
+    float u, v;  // tekstura
+    float nx, ny, nz;  // kordinate normale
 } Vertex;
 
 
