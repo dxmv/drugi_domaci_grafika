@@ -34,13 +34,27 @@ void main()
     float rock_weight  = smoothstep(0.5, 0.65, h) - smoothstep(0.8, 0.9, h);
     float snow_weight  = smoothstep(0.8, 0.9, h);
     
-    // Blend textures by height
-    vec4 terrain_color = sand * sand_weight + grass * grass_weight + rock * rock_weight + snow * snow_weight;
+    // --- Slope-aware blending ---
+    // Normals are per-fragment, so use them to estimate slope (0 = flat, 1 = vertical)
+    vec3 N = normalize(v_normal);
+    float slope = 1.0 - clamp(abs(dot(N, vec3(0.0, 1.0, 0.0))), 0.0, 1.0);
+
+    // Fade grass/sand out and favor rock where slope is steep
+    float slope_bias = smoothstep(0.35, 0.75, slope);
+    rock_weight = max(rock_weight, slope_bias);
+    float flat_bias = 1.0 - slope_bias;
+    sand_weight *= flat_bias;
+    grass_weight *= flat_bias;
+
+    // Normalize weights so lighting behaves predictably
+    float total_weight = sand_weight + grass_weight + rock_weight + snow_weight;
+    vec4 terrain_color =
+        (sand  * sand_weight  +
+         grass * grass_weight +
+         rock  * rock_weight  +
+         snow  * snow_weight) / max(total_weight, 0.0001);
     
     // --- Lighting calculation ---
-    
-    // Normalize the interpolated normal
-    vec3 N = normalize(v_normal);
     
     // Diffuse lighting: how much the surface faces the light
     float diffuse = max(dot(N, u_light_dir), 0.0);
