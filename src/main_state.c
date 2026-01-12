@@ -8,6 +8,7 @@
 #include <noise.h>
 #include <texture.h>
 #include <tree.h>
+#include <water.h>
 
 static int window_width, window_height;
 
@@ -34,6 +35,7 @@ static Terrain terrain;
 static Camera camera;
 
 static TreeSystem tree_system;
+static Water water;
 
 static const float skybox_vertices[] = {
     -1.0f,  1.0f, -1.0f,
@@ -215,6 +217,10 @@ void main_state_init(GLFWwindow *window, void *args, int width, int height)
 
     tree_system_init(&tree_system, &terrain);
 
+    float terrain_extent = (terrain.size - 1) * terrain.spacing;
+    float water_level = -10.0f;
+    water_init(&water, terrain_extent, water_level);
+
     printf("Terrain initialized: %d vertices, %d patches\n", 
               terrain.vertex_count, terrain.patch_count);
 }
@@ -304,8 +310,8 @@ void main_state_render(GLFWwindow *window, void *args)
     glUniform3f(u_ambient_color_loc, ambient_color.x, ambient_color.y, ambient_color.z);
 
     // Calculate MVP and send to shader
-    mat4_t mvp = camera_get_mvp(&camera);
-    glUniformMatrix4fv(u_MVP_location, 1, GL_FALSE, &mvp.m[0][0]);
+    mat4_t view_projection = camera_get_mvp(&camera);
+    glUniformMatrix4fv(u_MVP_location, 1, GL_FALSE, &view_projection.m[0][0]);
 
     vec3_t cam_pos = camera_get_position(&camera);
     float offset = (terrain.size - 1) * terrain.spacing / 2.0f;
@@ -340,7 +346,9 @@ void main_state_render(GLFWwindow *window, void *args)
     glBindVertexArray(0);
     glUseProgram(0);
 
-    tree_system_render(&tree_system, mvp, light_dir, light_color, ambient_color);
+    water_render(&water, view_projection, skybox_texture, cam_pos);
+
+    tree_system_render(&tree_system, view_projection, light_dir, light_color, ambient_color);
 }
 
 void main_state_cleanup(GLFWwindow *window, void *args)
@@ -361,6 +369,7 @@ void main_state_cleanup(GLFWwindow *window, void *args)
     glDeleteTextures(1, &tex_snow);
 
     tree_system_cleanup(&tree_system);
+    water_cleanup(&water);
 
     for (int patch_idx = 0; patch_idx < terrain.patch_count; ++patch_idx) {
         TerrainPatch *patch = &terrain.patches[patch_idx];

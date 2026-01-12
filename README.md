@@ -9,6 +9,7 @@ Proceduralni "terrain viewer" je realizovan kao RAFGL igra u prozoru 800x600 px 
 - **Mešanje tekstura prema visini i nagibu** – GLSL fragment ( `res/shaders/terrain/frag.glsl` ) uzorkuje pesak, travu, stenu i sneg i meša ih `smoothstep` funkcijama zavisno od visine, dok se nagib (dot sa Y normalom) koristi da se strmim delovima doda više stene.
 - **Osvetljenje** – jednostavna usmerena svetlost sa prigušenim ambijentom se računa u shaderu za teren i drveće (`u_light_dir`, `u_light_color`, `u_ambient_color`).
 - **Skybox** – kubna mapa (šest tekstura u `res/textures/skybox`) se crta pomoću posebnog šejdera i matrice pogleda bez translacije kako bi simulirala beskonačno nebo.
+- **Voda** – `water.c` dodaje veliki kvad na fiksnoj visini sa sopstvenim šejderom (`res/shaders/water`) koji uzima refleksiju iz iste skybox kubne mape, kombinuje je sa baznom bojom i blago providnom alfa vrednošću.
 - **Sistem za drveće** – `tree_system_init` nasumično bira verteksa pogodna za vegetaciju (opseg visine i mali nagib), učitava OBJ mrežu i crta više instanci sa različitim skalama/rotacijama uz gradijent boje krošnje u shaderu.
 - **Kontrole kamere** – slobodna FPS kamera (`camera.c`) podržava W/A/S/D kretanje po XZ ravni, Q/E po Y osi, a rotacija se aktivira desnim tasterom miša. Taster `T` prelazi u wireframe mod, a `ESC` zatvara aplikaciju.
 
