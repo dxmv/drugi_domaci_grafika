@@ -27,6 +27,7 @@ static void tree_instance_build(TreeInstance *instance, vec3_t position, float s
     instance->leaf_transition_height = 0.9f * scale;
 }
 
+// helperi
 static float random_unit(void)
 {
     return (float)rand() / (float)RAND_MAX;
@@ -129,10 +130,10 @@ void tree_system_init(TreeSystem *system, const Terrain *terrain)
         return;
     }
 
-    const float tree_density = 0.003f;
+    const float tree_density = 0.03f;
     system->instance_count = (int)(vertex_grid * tree_density);
 
-    const int max_tree_instances = 30;
+    const int max_tree_instances = 300;
     if(system->instance_count > max_tree_instances)
     {
         system->instance_count = max_tree_instances;
@@ -146,6 +147,7 @@ void tree_system_init(TreeSystem *system, const Terrain *terrain)
         return;
     }
 
+    // da li je dobar kandidat
     int candidate_count = 0;
     for(int row = 0; row < terrain->size; ++row)
     {

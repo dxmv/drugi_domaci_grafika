@@ -28,34 +28,28 @@ void terrain_init(Terrain *terrain, int size) {
     }
 
     int grid_vertex_count = size * size;
-    int extra_vertices = terrain->patch_count * PATCH_SKIRT_VERTICES;
+    int extra_vertices = terrain->patch_count * PATCH_SKIRT_VERTICES; // za rupe izmedju patchova
     terrain->vertex_count = grid_vertex_count + extra_vertices;
     
-    // Initialize noise (must call before using perlin2d)
     noise_init();
     
-    // Allocate heightmap
+    
     terrain->heightmap = malloc(terrain->vertex_count * sizeof(float));
     
-    // Fill heightmap with fBm (layered Perlin noise)
-    float scale = 3.0f;   // Controls "zoom" level
-    int octaves = 5;      // Number of layers (more = more detail)
+    float scale = 5.0f;
+    int octaves = 10; // sto veci broj vise detalja
     
     for (int row = 0; row < size; row++) {
         for (int col = 0; col < size; col++) {
-            // Convert grid position to noise coordinates
             float nx = (float)col / size * scale;
             float ny = (float)row / size * scale;
             
-            // Get fBm value and normalize to (0 to 1)
-            // fBm with 6 octaves can range roughly from -1.5 to 1.5
             float noise_val = fbm(nx, ny, octaves);
             
             terrain->heightmap[row * size + col] = noise_val;
         }
     }
     
-    // Allocate vertices
     terrain->vertices = malloc(terrain->vertex_count * sizeof(Vertex));
 
     printf("Terrain initialized: %dx%d grid, %d base vertices, %d patches\n", 
@@ -68,9 +62,10 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
     terrain->height_scale = height_scale;
     terrain->patch_world_stride = PATCH_SIZE * spacing;
     
-    // Center the grid around origin
+    
     float offset = (size - 1) * spacing / 2.0f;
     
+    // generisanje vertexa
     for (int row = 0; row < size; row++) {
         for (int col = 0; col < size; col++) {
             int index = row * size + col;
@@ -81,12 +76,12 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
             float u = (float)col / size;
             float v = (float)row / size;
             
-            // Initialize with placeholder normals (will be calculated later)
             terrain->vertices[index] = vertex_create(x, y, z, u, v, 0.0f, 1.0f, 0.0f);
         }
     }
 
     int grid_vertex_count = size * size;
+    // hardkodovano
     float skirt_normal_x = 0.0f;
     float skirt_normal_y = -1.0f;
     float skirt_normal_z = 0.0f;
@@ -99,7 +94,7 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
             int skirt_start = grid_vertex_count + patch_index * PATCH_SKIRT_VERTICES;
             int cursor = skirt_start;
 
-            // Top edge (left to right)
+            // gornja ivica
             for (int i = 0; i <= PATCH_SIZE; ++i) {
                 int col = start_col + i;
                 int row = start_row;
@@ -114,7 +109,7 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
                 terrain->vertices[cursor++] = base;
             }
 
-            // Right edge (top to bottom)
+            // desna ivica
             for (int i = 0; i <= PATCH_SIZE; ++i) {
                 int col = start_col + PATCH_SIZE;
                 int row = start_row + i;
@@ -129,7 +124,7 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
                 terrain->vertices[cursor++] = base;
             }
 
-            // Bottom edge (right to left)
+            // donja ivica
             for (int i = 0; i <= PATCH_SIZE; ++i) {
                 int col = start_col + (PATCH_SIZE - i);
                 int row = start_row + PATCH_SIZE;
@@ -144,7 +139,7 @@ void terrain_generate_vertices(Terrain *terrain, float spacing, float height_sca
                 terrain->vertices[cursor++] = base;
             }
 
-            // Left edge (bottom to top)
+            // leva ivica
             for (int i = 0; i <= PATCH_SIZE; ++i) {
                 int col = start_col;
                 int row = start_row + (PATCH_SIZE - i);
@@ -186,13 +181,12 @@ void terrain_calculate_normals(Terrain *terrain) {
         for (int col = 0; col < size; col++) {
             int index = row * size + col;
             
-            // Get neighbor indices with boundary clamping
+            // susedni vertexi
             int col_left  = (col > 0) ? col - 1 : col;
             int col_right = (col < size - 1) ? col + 1 : col;
             int row_up    = (row > 0) ? row - 1 : row;
             int row_down  = (row < size - 1) ? row + 1 : row;
             
-            // Get heights of neighbors (scaled)
             float height_left  = terrain->heightmap[row * size + col_left] * height_scale;
             float height_right = terrain->heightmap[row * size + col_right] * height_scale;
             float height_up    = terrain->heightmap[row_up * size + col] * height_scale;
@@ -205,7 +199,7 @@ void terrain_calculate_normals(Terrain *terrain) {
             float nz = height_up - height_down;
             float ny = 2.0f * spacing;
             
-            // Normalize the normal vector
+            // normalizujemo vektor
             float length = sqrtf(nx * nx + ny * ny + nz * nz);
             if (length > 0.0001f) {
                 nx /= length;
@@ -243,7 +237,7 @@ static unsigned int *build_patch_indices_internal(const Terrain *terrain, const 
     }
 
     int idx = 0;
-
+    // pravljenje ibo
     for (int row = 0; row < PATCH_SIZE; row += lod_step) {
         int global_row = clamp_to_grid(start_row + row, max_index);
         int global_row_next = clamp_to_grid(start_row + row + lod_step, max_index);
@@ -280,7 +274,7 @@ static unsigned int *build_patch_indices_internal(const Terrain *terrain, const 
         int offset = seg * lod_step;
         int next_offset = offset + lod_step;
 
-        // Top edge (left -> right)
+        // gornja ivica
         int top_row = clamp_to_grid(start_row, max_index);
         int v0 = clamp_to_grid(start_col + offset, max_index);
         int v1 = clamp_to_grid(start_col + next_offset, max_index);
@@ -297,7 +291,7 @@ static unsigned int *build_patch_indices_internal(const Terrain *terrain, const 
         indices[idx++] = top_s1;
         indices[idx++] = top_s0;
 
-        // Right edge (top -> bottom)
+        // desna ivica
         int right_col = clamp_to_grid(start_col + PATCH_SIZE, max_index);
         int r0 = clamp_to_grid(start_row + offset, max_index);
         int r1 = clamp_to_grid(start_row + next_offset, max_index);
@@ -314,7 +308,7 @@ static unsigned int *build_patch_indices_internal(const Terrain *terrain, const 
         indices[idx++] = right_s1;
         indices[idx++] = right_s0;
 
-        // Bottom edge (right -> left)
+        // donja ivica
         int bottom_row = clamp_to_grid(start_row + PATCH_SIZE, max_index);
         int b_col0 = clamp_to_grid(start_col + PATCH_SIZE - offset, max_index);
         int b_col1 = clamp_to_grid(start_col + PATCH_SIZE - next_offset, max_index);
@@ -331,7 +325,7 @@ static unsigned int *build_patch_indices_internal(const Terrain *terrain, const 
         indices[idx++] = bottom_s1;
         indices[idx++] = bottom_s0;
 
-        // Left edge (bottom -> top)
+        // leva ivica
         int left_col = clamp_to_grid(start_col, max_index);
         int l_row0 = clamp_to_grid(start_row + PATCH_SIZE - offset, max_index);
         int l_row1 = clamp_to_grid(start_row + PATCH_SIZE - next_offset, max_index);

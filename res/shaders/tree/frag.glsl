@@ -16,6 +16,8 @@ uniform float u_leaf_transition_height;
 void main()
 {
     vec3 N = normalize(v_normal);
+
+    // isto kao za teren
     float diffuse = max(dot(N, normalize(u_light_dir)), 0.0);
     vec3 lighting = u_ambient_color + diffuse * u_light_color;
 

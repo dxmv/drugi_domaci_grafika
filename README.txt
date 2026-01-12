@@ -4,9 +4,10 @@
 - [x] noise.c
 - [x] camera.c
 - [x] main_state.c
+- [x] tree.c
+- [x] water.c
 
-- More Advanced Texture Blending
-- Simple Water Plane
-- Day/Night Cycle
-- Frustum Culling
-- Interactive Terrain Deformation?
+- [x] shaders for terrain
+- [x] shaders for skybox
+- [x] shaders for tree
+- [ ] shaders for water

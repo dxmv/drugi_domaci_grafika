@@ -13,6 +13,11 @@ Proceduralni "terrain viewer" je realizovan kao RAFGL igra u prozoru 800x600 px 
 - **Sistem za drveće** – `tree_system_init` nasumično bira verteksa pogodna za vegetaciju (opseg visine i mali nagib), učitava OBJ mrežu i crta više instanci sa različitim skalama/rotacijama uz gradijent boje krošnje u shaderu.
 - **Kontrole kamere** – slobodna FPS kamera (`camera.c`) podržava W/A/S/D kretanje po XZ ravni, Q/E po Y osi, a rotacija se aktivira desnim tasterom miša. Taster `T` prelazi u wireframe mod, a `ESC` zatvara aplikaciju.
 
+### Napomene za vodu
+- Visina vode se trenutno postavlja u `main_state.c` (promenljiva `water_level`), vrednost je u jedinicama sveta; promeni je da podesiš nivo mora.
+- Površina se prostire preko cele mreže (`water_init` dobija ukupni `terrain_extent`).
+- Boju i intenzitet refleksije možeš da prilagodiš u `water.c` preko `DEFAULT_WATER_COLOR` i `DEFAULT_REFLECTION`, ili iz koda postavljanjem `water.color`/`water.reflection_strength` posle inicijalizacije.
+
 ## Pokretanje
 Implementacija se oslanja na RAFGL infrastrukturu i GLFW. Projekat dolazi sa gotovim izvorom GLAD-a i shaderima, tako da su dodatne zavisnosti samo `gcc` i `glfw` (na macOS-u se linkuju potrebni framework-ovi kroz Makefile).
 

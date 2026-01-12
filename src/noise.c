@@ -1,28 +1,25 @@
 #include <noise.h>
 #include <stdio.h>
 
-// Permutation table (doubled to avoid modulo)
 static int perm[TABLE_SIZE * 2];
 
-// 8 gradient vectors for 2D
 static float gradients[8][2] = {
     { 1, 0}, { -1, 0}, { 0, 1}, { 0,-1},
     { 1, 1}, { -1, 1}, { 1,-1}, {-1,-1}
 };
 
-// Fade function: 6t^5 - 15t^4 + 10t^3 (smoothstep)
+// 6t^5 - 15t^4 + 10t^3 
 static float fade(float t) {
     return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-// Linear interpolation
 static float lerp(float a, float b, float t) {
     return a + t * (b - a);
 }
 
-// Dot product of gradient and distance vector
+// proizvod gradienta i vektora distance
 static float grad(int hash, float x, float y) {
-    int idx = hash & 7;  // Use only 8 gradients
+    int idx = hash & 7;
     return gradients[idx][0] * x + gradients[idx][1] * y;
 }
 
@@ -45,7 +42,6 @@ void noise_init(void) {
         perm[i + TABLE_SIZE] = temp[i];
     }
     
-    printf("Noise initialized\n");
 }
 
 float perlin2d(float x, float y) {
@@ -66,9 +62,9 @@ float perlin2d(float x, float y) {
     int ba = perm[perm[x1] + y0];
     int bb = perm[perm[x1] + y1];
     
-    float g_aa = grad(aa, xf,     yf);      // top-left
-    float g_ba = grad(ba, xf - 1, yf);      // top-right
-    float g_ab = grad(ab, xf,     yf - 1);  // bottom-left
+    float g_aa = grad(aa, xf, yf); // top-left
+    float g_ba = grad(ba, xf - 1, yf); // top-right
+    float g_ab = grad(ab, xf, yf - 1); // bottom-left
     float g_bb = grad(bb, xf - 1, yf - 1);  // bottom-right
     
     float lerp_top = lerp(g_aa, g_ba, u);

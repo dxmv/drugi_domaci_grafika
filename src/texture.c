@@ -33,7 +33,6 @@ GLuint texture_load(const char *filepath) {
     
     stbi_image_free(data);
     
-    printf("Loaded texture: %s (%dx%d, %d channels)\n", filepath, width, height, channels);
     return tex_id;
 }
 

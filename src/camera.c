@@ -2,16 +2,16 @@
 #include <stdio.h>
 #include <math.h>
 
-// Helper to update front/right vectors from yaw/pitch
+
 static void camera_update_vectors(Camera *camera) {
-    // Calculate front vector from yaw and pitch
+    // racunanje prednje vektora
     vec3_t front;
     front.x = cosf(camera->yaw * M_PIf / 180.0f) * cosf(camera->pitch * M_PIf / 180.0f);
     front.y = sinf(camera->pitch * M_PIf / 180.0f);
     front.z = sinf(camera->yaw * M_PIf / 180.0f) * cosf(camera->pitch * M_PIf / 180.0f);
     camera->front = v3_norm(front);
     
-    // Recalculate right and up vectors
+    // ponovoa racunamo desni i gornji vektor
     camera->right = v3_norm(v3_cross(camera->front, vec3(0.0f, 1.0f, 0.0f)));
     camera->up = v3_norm(v3_cross(camera->right, camera->front));
 }
@@ -23,8 +23,8 @@ void camera_init(Camera *camera, float aspect_ratio) {
     camera->yaw = -90.0f;    
     camera->pitch = -20.0f;  
     
-    camera->move_speed = 20.0f;
-    camera->mouse_sensitivity = 0.5f;
+    camera->move_speed = 25.0f;
+    camera->mouse_sensitivity = 0.7f;
     
     camera->last_mouse_x = 0.0f;
     camera->last_mouse_y = 0.0f;
@@ -37,7 +37,7 @@ void camera_init(Camera *camera, float aspect_ratio) {
     vec3_t target = v3_add(camera->position, camera->front);
     camera->view = m4_look_at(camera->position, target, camera->up);
     
-    camera->projection = m4_perspective(120.0f, aspect_ratio, 0.1f, 200.0f);
+    camera->projection = m4_perspective(120.0f, aspect_ratio, 0.1f, 1000.0f);
     
     printf("Camera initialized at (%.1f, %.1f, %.1f), yaw=%.1f, pitch=%.1f\n", 
            camera->position.x, camera->position.y, camera->position.z,
@@ -99,7 +99,7 @@ void camera_update(Camera *camera, float delta_time, rafgl_game_data_t *game_dat
 }
 
 mat4_t camera_get_mvp(Camera *camera) {
-    // MVP = Projection * View (no model transform needed)
+    // projection * view
     return m4_mul(camera->projection, camera->view);
 }
 
